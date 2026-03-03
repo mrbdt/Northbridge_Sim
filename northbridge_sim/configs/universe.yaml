@@ -1,0 +1,25 @@
+instruments:
+  - symbol: "BTC-USDT"
+    asset_class: "crypto"
+    ccy: "USDT"
+    multiplier: 1.0
+  - symbol: "ETH-USDT"
+    asset_class: "crypto"
+    ccy: "USDT"
+    multiplier: 1.0
+  - symbol: "SPY"
+    asset_class: "equity"
+    ccy: "USD"
+    multiplier: 1.0
+  - symbol: "QQQ"
+    asset_class: "equity"
+    ccy: "USD"
+    multiplier: 1.0
+  - symbol: "AAPL"
+    asset_class: "equity"
+    ccy: "USD"
+    multiplier: 1.0
+  - symbol: "TSLA"
+    asset_class: "equity"
+    ccy: "USD"
+    multiplier: 1.0

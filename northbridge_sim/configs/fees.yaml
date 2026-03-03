@@ -1,0 +1,13 @@
+fees:
+  EQUITIES:
+    commission_bps: 1.0
+    min_commission: 0.10
+    spread_bps: 1.0
+
+  BINANCE:
+    commission_bps: 4.0
+    spread_bps: 2.0
+
+  COINBASE:
+    commission_bps: 6.0
+    spread_bps: 3.0

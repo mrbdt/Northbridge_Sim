@@ -1,0 +1,56 @@
+firm:
+  name: Northbridge Multi-Strategy (Sim)
+  base_ccy: USD
+  timezone: Europe/London
+  initial_cash: 1000000
+
+llm:
+  ollama_base_url: "http://localhost:11434"
+  max_concurrent_generations: 2
+  request_timeout_seconds: 120
+  models:
+    big: "firm-qwen35b"
+    worker: "firm-qwen9b"
+    tiny: "qwen3.5:4b"
+  default_keep_alive: "30m"
+  default_options:
+    temperature: 0.4
+    top_p: 0.9
+
+data:
+  crypto:
+    enabled: true
+    venues: ["BINANCE"]
+    symbols: ["BTC-USDT", "ETH-USDT"]
+    channels: ["TRADES"]
+  equities:
+    enabled: true
+    provider: "alpaca_poll"   # alpaca_poll | yahoo_poll
+    poll_interval_seconds: 10
+    symbols: ["SPY", "QQQ", "AAPL", "TSLA"]
+
+risk:
+  max_gross_leverage: 3.0
+  max_net_leverage: 1.0
+  max_position_pct_nav: 0.20
+  max_daily_loss_pct: 0.02
+  max_drawdown_pct: 0.10
+  max_orders_per_minute: 20
+
+execution:
+  default_venue_crypto: "BINANCE"
+  default_venue_equities: "EQUITIES"
+  slippage_model:
+    base_bps_crypto: 2.0
+    base_bps_equities: 3.0
+
+storage:
+  sqlite_path: "data/firm.db"
+  parquet_root: "data/parquet"
+
+redis:
+  url: "redis://localhost:6379/0"
+  channels:
+    bus_prefix: "nb:chan:"
+    last_price_hash: "nb:last_price"
+    portfolio_snapshot: "nb:portfolio:snapshot"
