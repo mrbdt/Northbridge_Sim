@@ -164,6 +164,45 @@ CREATE TABLE IF NOT EXISTS universe_events (
 """
 
 
+async def migrate_positions_schema(db: Database) -> None:
+    """Backfill legacy positions schema (avg_px/side) into avg_price/realized_pnl."""
+    cols = await db.fetchall("PRAGMA table_info(positions)")
+    if not cols:
+        return
+
+    names = {str(c.get("name") or "") for c in cols}
+    # Already on current schema.
+    if "avg_price" in names and "realized_pnl" in names:
+        return
+
+    # Legacy schema detected; rebuild table while preserving qty + average entry.
+    await db.executescript(
+        """
+        ALTER TABLE positions RENAME TO positions_legacy;
+
+        CREATE TABLE IF NOT EXISTS positions (
+          symbol TEXT PRIMARY KEY,
+          qty REAL NOT NULL,
+          avg_price REAL NOT NULL,
+          realized_pnl REAL NOT NULL,
+          meta_json TEXT
+        );
+
+        INSERT OR REPLACE INTO positions(symbol, qty, avg_price, realized_pnl, meta_json)
+        SELECT
+          symbol,
+          COALESCE(qty, 0.0),
+          COALESCE(avg_px, 0.0),
+          0.0,
+          COALESCE(meta_json, '{}')
+        FROM positions_legacy;
+
+        DROP TABLE positions_legacy;
+        """
+    )
+
+
+
 class DirectiveIn(BaseModel):
     text: str
 
@@ -217,6 +256,7 @@ def build_app() -> FastAPI:
         db = Database(settings.storage.get("sqlite_path", "data/firm.db"))
         await db.connect()
         await db.executescript(MIGRATION_SQL)
+        await migrate_positions_schema(db)
 
         # Redis + bus
         rc = RedisClient(settings.redis.get("url", "redis://localhost:6379/0"))
