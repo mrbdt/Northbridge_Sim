@@ -69,8 +69,9 @@ class YahooUniversePoller:
         # Yahoo endpoint supports multiple symbols separated by commas, but keep requests reasonably small.
         for chunk in _chunk(symbols, self.max_symbols_per_request):
             symbols_str = ",".join(chunk)
-            url = f"https://query1.finance.yahoo.com/v7/finance/quote?symbols={symbols_str}"
-            resp = await asyncio.to_thread(self._session.get, url, timeout=10)
+            url = "https://query1.finance.yahoo.com/v7/finance/quote"
+            params = {"symbols": symbols_str}
+            resp = await asyncio.to_thread(self._session.get, url, params=params, timeout=10)
             resp.raise_for_status()
             data = resp.json()
             results = data.get("quoteResponse", {}).get("result", [])
