@@ -4,6 +4,8 @@ firm:
   timezone: Europe/London
   initial_cash: 1000000
 
+  ceo_report_update_minutes: 30  # CEO rolling report update frequency
+
 llm:
   ollama_base_url: "http://localhost:11434"
   max_concurrent_generations: 2
@@ -20,7 +22,7 @@ llm:
 data:
   crypto:
     enabled: true
-    venues: ["BINANCE"]
+    venues: ["BINANCE"]  # Coinbase may require auth for symbol mapping; add later if configured
     symbols: ["BTC-USDT", "ETH-USDT"]
     channels: ["TRADES"]
   equities:
@@ -28,6 +30,10 @@ data:
     provider: "alpaca_poll"   # alpaca_poll | yahoo_poll
     poll_interval_seconds: 10
     symbols: ["SPY", "QQQ", "AAPL", "TSLA"]
+
+  yahoo_universe:
+    enabled: true
+    poll_interval_seconds: 15
 
 risk:
   max_gross_leverage: 3.0

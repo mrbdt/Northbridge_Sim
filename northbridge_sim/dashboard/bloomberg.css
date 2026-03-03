@@ -1,0 +1,70 @@
+/* Bloomberg-ish dark terminal theme for Streamlit */
+html, body, [class*="css"] {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace !important;
+}
+
+.stApp {
+  background: #0b0c0f;
+  color: #e6e6e6;
+}
+
+/* Sidebar */
+section[data-testid="stSidebar"] {
+  background: #0f1117;
+  border-right: 1px solid #2a2f3a;
+}
+
+/* Headings */
+h1, h2, h3, h4 {
+  color: #ff9f0a !important;
+  letter-spacing: 0.3px;
+}
+
+/* Metric blocks */
+div[data-testid="stMetric"] {
+  background: #0f1117;
+  border: 1px solid #2a2f3a;
+  border-radius: 6px;
+  padding: 10px 12px;
+}
+
+/* DataFrames / tables */
+[data-testid="stDataFrame"] {
+  border: 1px solid #2a2f3a;
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+/* Buttons */
+.stButton>button {
+  background: #141824;
+  color: #ff9f0a;
+  border: 1px solid #2a2f3a;
+  border-radius: 6px;
+}
+.stButton>button:hover {
+  border-color: #ff9f0a;
+}
+
+/* Tabs */
+button[data-baseweb="tab"] {
+  font-weight: 600;
+  letter-spacing: 0.2px;
+}
+button[data-baseweb="tab"][aria-selected="true"] {
+  color: #ff9f0a !important;
+}
+
+/* Text inputs */
+input, textarea {
+  background: #0f1117 !important;
+  color: #e6e6e6 !important;
+  border: 1px solid #2a2f3a !important;
+  border-radius: 6px !important;
+}
+
+/* Expanders */
+div[data-testid="stExpander"] {
+  border: 1px solid #2a2f3a;
+  border-radius: 6px;
+}

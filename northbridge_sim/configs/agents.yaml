@@ -1,113 +1,134 @@
 agents:
-  - id: ceo
-    name: "Alex"
-    title: "CEO/CIO"
-    role: "portfolio_lead"
-    status: active
-    model: big
-    schedule:
-      heartbeat_seconds: 60
-      daily_report_time: "17:05"
-    permissions:
-      can_trade: false
-      can_veto: true
-
-  - id: cro
-    name: "Riya"
-    title: "Chief Risk Officer"
-    role: "risk"
-    status: active
-    model: worker
-    schedule:
-      heartbeat_seconds: 30
-    permissions:
-      can_trade: false
-      can_veto: true
-
-  - id: quant
-    name: "Quinn"
-    title: "Quant PM"
-    role: "quant"
-    status: active
-    model: worker
-    schedule:
-      heartbeat_seconds: 60
-    permissions:
-      can_trade: false
-
-  - id: macro
-    name: "Maya"
-    title: "Macro PM"
-    role: "macro"
-    status: active
-    model: big
-    schedule:
-      heartbeat_seconds: 120
-    permissions:
-      can_trade: false
-
-  - id: event
-    name: "Evan"
-    title: "Event-Driven PM"
-    role: "event"
-    status: active
-    model: worker
-    schedule:
-      heartbeat_seconds: 90
-    permissions:
-      can_trade: false
-
-  - id: crypto
-    name: "Cy"
-    title: "Crypto PM"
-    role: "crypto"
-    status: active
-    model: worker
-    schedule:
-      heartbeat_seconds: 30
-    permissions:
-      can_trade: false
-
-  - id: vol
-    name: "Val"
-    title: "Vol / RV PM"
-    role: "vol"
-    status: active
-    model: worker
-    schedule:
-      heartbeat_seconds: 120
-    permissions:
-      can_trade: false
-
-  - id: exec
-    name: "Miles"
-    title: "Head of Execution"
-    role: "execution"
-    status: active
-    model: worker
-    schedule:
-      heartbeat_seconds: 5
-    permissions:
-      can_trade: true
-
-  - id: infra
-    name: "Remy"
-    title: "Data/Infra"
-    role: "infra"
-    status: active
-    model: tiny
-    schedule:
-      heartbeat_seconds: 120
-    permissions:
-      can_trade: false
-
-  - id: ops
-    name: "Opal"
-    title: "Ops/Finance"
-    role: "ops"
-    status: active
-    model: tiny
-    schedule:
-      heartbeat_seconds: 60
-    permissions:
-      can_trade: false
+- id: ceo
+  name: Alex
+  title: CEO/CIO
+  role: portfolio_lead
+  status: active
+  model: big
+  schedule:
+    heartbeat_seconds: 60
+    daily_report_time: '17:05'
+  permissions:
+    can_trade: false
+    can_veto: true
+- id: cro
+  name: Riya
+  title: Chief Risk Officer
+  role: risk
+  status: active
+  model: worker
+  schedule:
+    heartbeat_seconds: 30
+  permissions:
+    can_trade: false
+    can_veto: true
+- id: quant
+  name: Quinn
+  title: Quant PM
+  role: quant
+  status: active
+  model: worker
+  schedule:
+    heartbeat_seconds: 60
+  permissions:
+    can_trade: false
+- id: macro
+  name: Maya
+  title: Macro PM
+  role: macro
+  status: active
+  model: big
+  schedule:
+    heartbeat_seconds: 120
+  permissions:
+    can_trade: false
+- id: event
+  name: Evan
+  title: Event-Driven PM
+  role: event
+  status: active
+  model: worker
+  schedule:
+    heartbeat_seconds: 90
+  permissions:
+    can_trade: false
+- id: crypto
+  name: Cy
+  title: Crypto PM
+  role: crypto
+  status: active
+  model: worker
+  schedule:
+    heartbeat_seconds: 30
+  permissions:
+    can_trade: false
+- id: vol
+  name: Val
+  title: Vol / RV PM
+  role: vol
+  status: active
+  model: worker
+  schedule:
+    heartbeat_seconds: 120
+  permissions:
+    can_trade: false
+- id: exec
+  name: Miles
+  title: Head of Execution
+  role: execution
+  status: active
+  model: worker
+  schedule:
+    heartbeat_seconds: 5
+  permissions:
+    can_trade: true
+- id: infra
+  name: Remy
+  title: Data/Infra
+  role: infra
+  status: active
+  model: tiny
+  schedule:
+    heartbeat_seconds: 120
+  permissions:
+    can_trade: false
+- id: ops
+  name: Opal
+  title: Ops/Finance
+  role: ops
+  status: active
+  model: tiny
+  schedule:
+    heartbeat_seconds: 60
+  permissions:
+    can_trade: false
+- id: signals
+  name: Scout
+  title: Web Signals / Intel
+  role: signals
+  status: active
+  model: tiny
+  schedule:
+    heartbeat_seconds: 180
+  permissions:
+    can_trade: false
+- id: commodities
+  name: Cora
+  title: Commodities PM
+  role: commodities
+  status: active
+  model: worker
+  schedule:
+    heartbeat_seconds: 120
+  permissions:
+    can_trade: false
+- id: fx
+  name: Felix
+  title: FX PM
+  role: fx
+  status: active
+  model: worker
+  schedule:
+    heartbeat_seconds: 120
+  permissions:
+    can_trade: false

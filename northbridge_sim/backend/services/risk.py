@@ -20,7 +20,7 @@ class RiskService:
 
         px = None
         for k, v in snap.last_prices.items():
-            if k.startswith(intent.symbol + "@"):
+            if k.startswith(intent.symbol.upper() + "@"):
                 px = float(v["last"])
                 break
         if px is None:

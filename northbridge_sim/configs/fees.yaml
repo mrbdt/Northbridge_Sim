@@ -8,6 +8,11 @@ fees:
     commission_bps: 4.0
     spread_bps: 2.0
 
+  YAHOO:
+    commission_bps: 2.0
+    min_commission: 0.00
+    spread_bps: 2.0
+
   COINBASE:
     commission_bps: 6.0
     spread_bps: 3.0

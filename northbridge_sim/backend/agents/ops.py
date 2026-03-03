@@ -6,4 +6,4 @@ class OpsAgent(BaseAgent):
     async def step(self) -> None:
         snap = await self.ctx.services["portfolio"].snapshot()
         await self.ctx.bus.publish("ops", self.agent_id, f"NAV={snap.nav:.2f} lev={snap.leverage:.2f} dd={snap.drawdown:.2%}")
-        await self.log_state({"state":"reporting","nav":snap.nav,"leverage":snap.leverage,"drawdown":snap.drawdown,"gross":snap.gross_exposure,"net":snap.net_exposure,"n_positions":len(snap.positions)})
+        await self.log_state({"state":"reporting"})

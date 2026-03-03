@@ -1,4 +1,5 @@
 instruments:
+  # Crypto (real-time via cryptofeed)
   - symbol: "BTC-USDT"
     asset_class: "crypto"
     ccy: "USDT"
@@ -7,6 +8,8 @@ instruments:
     asset_class: "crypto"
     ccy: "USDT"
     multiplier: 1.0
+
+  # Equities (delayed via Alpaca free tier or Yahoo fallback)
   - symbol: "SPY"
     asset_class: "equity"
     ccy: "USD"
@@ -22,4 +25,40 @@ instruments:
   - symbol: "TSLA"
     asset_class: "equity"
     ccy: "USD"
+    multiplier: 1.0
+  - symbol: "TLT"
+    asset_class: "rates"
+    ccy: "USD"
+    multiplier: 1.0
+
+  # Commodities (Yahoo polling)
+  - symbol: "GC=F"   # Gold
+    asset_class: "commodity"
+    ccy: "USD"
+    multiplier: 1.0
+  - symbol: "CL=F"   # Crude Oil
+    asset_class: "commodity"
+    ccy: "USD"
+    multiplier: 1.0
+  - symbol: "NG=F"   # Natural Gas
+    asset_class: "commodity"
+    ccy: "USD"
+    multiplier: 1.0
+  - symbol: "SI=F"   # Silver
+    asset_class: "commodity"
+    ccy: "USD"
+    multiplier: 1.0
+
+  # FX (Yahoo polling)
+  - symbol: "EURUSD=X"
+    asset_class: "fx"
+    ccy: "USD"
+    multiplier: 1.0
+  - symbol: "GBPUSD=X"
+    asset_class: "fx"
+    ccy: "USD"
+    multiplier: 1.0
+  - symbol: "JPY=X"   # USDJPY
+    asset_class: "fx"
+    ccy: "JPY"
     multiplier: 1.0

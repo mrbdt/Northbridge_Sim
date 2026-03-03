@@ -1,12 +1,14 @@
 from __future__ import annotations
 
 import uuid
-from .base import BaseAgent, AgentConfig, AgentContext
+
+from .base import BaseAgent
 from ..models import TradeIntent, Order
 from ..utils import utcnow_iso
 
+
 class ExecutionAgent(BaseAgent):
-    def __init__(self, cfg: AgentConfig, ctx: AgentContext):
+    def __init__(self, cfg, ctx):
         super().__init__(cfg, ctx)
         self._exec_q = ctx.bus.subscribe("execution")
 
@@ -14,7 +16,7 @@ class ExecutionAgent(BaseAgent):
         broker = self.ctx.services["broker"]
         portfolio = self.ctx.services["portfolio"]
         executed = 0
-        last_fills = []
+        rejected = 0
         while True:
             try:
                 msg = self._exec_q.get_nowait()
@@ -33,8 +35,8 @@ class ExecutionAgent(BaseAgent):
                 order_id=str(uuid.uuid4()),
                 ts=utcnow_iso(),
                 agent_id=self.agent_id,
-                symbol=intent.symbol,
-                venue=intent.venue,
+                symbol=intent.symbol.upper(),
+                venue=intent.venue.upper(),
                 side=intent.side,
                 qty=float(intent.qty),
                 order_type=intent.order_type,
@@ -43,12 +45,12 @@ class ExecutionAgent(BaseAgent):
             )
             fill, err = await broker.submit_order(order)
             if err:
+                rejected += 1
                 await self.ctx.bus.publish("execution", self.agent_id, f"ORDER_REJECTED: {err}", meta={"order": order.model_dump()})
                 continue
             if fill:
                 await portfolio.apply_fill(fill)
-                last_fills.append(fill.model_dump())
-                last_fills = last_fills[-5:]
-                await self.ctx.bus.publish("execution", self.agent_id, f"FILLED {fill.symbol} {fill.side} qty={fill.qty} px={fill.price:.6f} fees={fill.fees:.2f}", meta={"fill": fill.model_dump()})
+                await self.ctx.bus.publish("execution", self.agent_id, "FILLED", meta={"fill": fill.model_dump()})
                 executed += 1
-        await self.log_state({"state":"executing","executed":executed,"last_fills":last_fills})
+
+        await self.log_state({"state": "executing", "executed": executed, "rejected": rejected})

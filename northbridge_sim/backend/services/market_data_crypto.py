@@ -16,10 +16,16 @@ EXCHANGE_MAP = {
     "COINBASE": Coinbase,
 }
 
+
 class CryptoDataHub:
     """
     Crypto real-time via cryptofeed.
-    Starts feeds on the existing asyncio loop (start_loop=False).
+
+    IMPORTANT:
+    Some exchanges (notably Coinbase, depending on upstream API behavior) may require
+    authenticated REST calls for symbol mapping. If a venue fails to initialize
+    (e.g., 401), we record the error and continue with other venues so the simulator
+    can still boot.
     """
     def __init__(self, venues: List[str], symbols: List[str], price_store: PriceStore, tick_writer: ParquetTickWriter):
         self.venues = venues
@@ -27,14 +33,22 @@ class CryptoDataHub:
         self.price_store = price_store
         self.tick_writer = tick_writer
         self.fh: Optional[FeedHandler] = None
+        self.startup_errors: list[str] = []
 
     async def start(self) -> None:
         self.fh = FeedHandler()
         for v in self.venues:
             ex = EXCHANGE_MAP.get(v.upper())
             if not ex:
+                self.startup_errors.append(f"Unknown crypto venue: {v}")
                 continue
-            self.fh.add_feed(ex(symbols=self.symbols, channels=[TRADES], callbacks={TRADES: self._on_trade}))
+            try:
+                self.fh.add_feed(ex(symbols=self.symbols, channels=[TRADES], callbacks={TRADES: self._on_trade}))
+            except Exception as e:
+                self.startup_errors.append(f"{v.upper()} init failed: {e}")
+                continue
+
+        # Start without taking over the asyncio loop
         self.fh.run(start_loop=False, install_signal_handlers=False)
 
     async def stop(self) -> None:

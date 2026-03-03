@@ -50,7 +50,7 @@ class AutoEquitiesPoller:
         venue: str = "EQUITIES",
         on_event: Optional[Callable[[str], Awaitable[None]]] = None,
     ):
-        self.symbols = symbols
+        self.symbols = [s.strip().upper() for s in symbols]
         self.poll_interval = poll_interval_seconds
         self.price_store = price_store
         self.tick_writer = tick_writer
@@ -66,6 +66,16 @@ class AutoEquitiesPoller:
     @property
     def mode(self) -> str:
         return self._mode
+
+    def add_symbols(self, symbols: List[str]) -> None:
+        for s in symbols:
+            sym = s.strip().upper()
+            if sym and sym not in self.symbols:
+                self.symbols.append(sym)
+
+    def remove_symbols(self, symbols: List[str]) -> None:
+        remove_set = {s.strip().upper() for s in symbols}
+        self.symbols = [s for s in self.symbols if s not in remove_set]
 
     async def start(self) -> None:
         api_key = os.environ.get("ALPACA_API_KEY")
@@ -150,7 +160,7 @@ class YahooPoller:
     Explicit Yahoo-only poller (kept for compatibility / testing).
     """
     def __init__(self, symbols: List[str], poll_interval_seconds: int, price_store: PriceStore, tick_writer: ParquetTickWriter, venue: str = "EQUITIES"):
-        self.symbols = symbols
+        self.symbols = [s.strip().upper() for s in symbols]
         self.poll_interval = poll_interval_seconds
         self.price_store = price_store
         self.tick_writer = tick_writer

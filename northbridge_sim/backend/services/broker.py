@@ -37,7 +37,7 @@ class BrokerSim:
         self.base_slippage_bps = base_slippage_bps
 
     def _instrument_key(self, symbol: str, venue: str) -> str:
-        return f"{symbol}@{venue}"
+        return f"{symbol.upper()}@{venue.upper()}"
 
     def _mid_from_price(self, p) -> float:
         if p.bid is not None and p.ask is not None and p.bid > 0 and p.ask > 0:

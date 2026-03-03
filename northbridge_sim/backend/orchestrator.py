@@ -16,6 +16,9 @@ from .agents.vol import VolAgent
 from .agents.execution import ExecutionAgent
 from .agents.infra import InfraAgent
 from .agents.ops import OpsAgent
+from .agents.signals import SignalsAgent
+from .agents.commodities import CommoditiesAgent
+from .agents.fx import FXAgent
 
 AGENT_CLASS_BY_ROLE = {
     "portfolio_lead": CEOAgent,
@@ -28,6 +31,9 @@ AGENT_CLASS_BY_ROLE = {
     "execution": ExecutionAgent,
     "infra": InfraAgent,
     "ops": OpsAgent,
+    "signals": SignalsAgent,
+    "commodities": CommoditiesAgent,
+    "fx": FXAgent,
 }
 
 class AgentSupervisor:
@@ -69,6 +75,13 @@ class AgentSupervisor:
 
     async def _apply_config(self) -> None:
         cfgs = load_agents(self.agents_path)
+        # keep internal messaging rooms in sync with agent roster
+        chat = self.ctx.services.get("chat")
+        if chat:
+            try:
+                await chat.bootstrap([c.get("id") for c in cfgs if c.get("id")])
+            except Exception:
+                pass
         desired_active = {c["id"]: c for c in cfgs if c.get("status","active") == "active"}
 
         # stop agents not desired
@@ -107,6 +120,13 @@ class AgentSupervisor:
 
     async def set_status(self, agent_id: str, status: str) -> None:
         cfgs = load_agents(self.agents_path)
+        # keep internal messaging rooms in sync with agent roster
+        chat = self.ctx.services.get("chat")
+        if chat:
+            try:
+                await chat.bootstrap([c.get("id") for c in cfgs if c.get("id")])
+            except Exception:
+                pass
         found = False
         for a in cfgs:
             if a.get("id") == agent_id:
@@ -118,6 +138,13 @@ class AgentSupervisor:
 
     async def hire(self, agent_block: Dict[str, Any]) -> None:
         cfgs = load_agents(self.agents_path)
+        # keep internal messaging rooms in sync with agent roster
+        chat = self.ctx.services.get("chat")
+        if chat:
+            try:
+                await chat.bootstrap([c.get("id") for c in cfgs if c.get("id")])
+            except Exception:
+                pass
         if any(a.get("id") == agent_block.get("id") for a in cfgs):
             raise ValueError("Agent id already exists")
         cfgs.append(agent_block)

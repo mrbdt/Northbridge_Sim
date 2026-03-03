@@ -40,3 +40,7 @@ Edit `configs/agents.yaml`:
 - add a new agent block to hire
 
 Or use Streamlit Admin buttons (writes to the YAML file via backend endpoints).
+
+
+## Alpaca free tier rate limit (429) automatic fallback
+If `provider: alpaca_poll` is enabled and Alpaca returns **429 Too Many Requests**, the system automatically switches to **Yahoo polling** for the rest of the session and posts a message in the `ops` channel.

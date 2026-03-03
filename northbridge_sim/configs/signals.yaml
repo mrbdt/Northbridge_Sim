@@ -1,0 +1,18 @@
+# RSS feeds consumed by the Signals (Web Intel) agent.
+# Keep this list small at first to avoid noise.
+feeds:
+  - category: "macro"
+    name: "GoogleNews: Macro"
+    url: "https://news.google.com/rss/search?q=macro+economy+inflation+central+bank&hl=en-GB&gl=GB&ceid=GB:en"
+  - category: "equities"
+    name: "GoogleNews: Equities"
+    url: "https://news.google.com/rss/search?q=stocks+earnings+guidance+buyback&hl=en-GB&gl=GB&ceid=GB:en"
+  - category: "crypto"
+    name: "GoogleNews: Crypto"
+    url: "https://news.google.com/rss/search?q=crypto+bitcoin+ethereum+exchange+hack+etf&hl=en-GB&gl=GB&ceid=GB:en"
+  - category: "commodities"
+    name: "GoogleNews: Commodities"
+    url: "https://news.google.com/rss/search?q=oil+gold+natural+gas+opec+inventory&hl=en-GB&gl=GB&ceid=GB:en"
+  - category: "fx"
+    name: "GoogleNews: FX"
+    url: "https://news.google.com/rss/search?q=fx+eurusd+gbpusd+yen+carry+trade&hl=en-GB&gl=GB&ceid=GB:en"

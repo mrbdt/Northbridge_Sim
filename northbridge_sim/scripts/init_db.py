@@ -94,6 +94,44 @@ CREATE TABLE IF NOT EXISTS ceo_reports (
   report_text TEXT NOT NULL,
   meta_json TEXT
 );
+
+CREATE TABLE IF NOT EXISTS chat_rooms (
+  room_id TEXT PRIMARY KEY,
+  kind TEXT NOT NULL,
+  name TEXT NOT NULL,
+  created_by TEXT,
+  created_ts TEXT,
+  meta_json TEXT
+);
+
+CREATE TABLE IF NOT EXISTS chat_members (
+  room_id TEXT NOT NULL,
+  member_id TEXT NOT NULL,
+  added_by TEXT,
+  added_ts TEXT,
+  meta_json TEXT,
+  PRIMARY KEY(room_id, member_id)
+);
+
+CREATE TABLE IF NOT EXISTS signals_items (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  ts TEXT NOT NULL,
+  category TEXT NOT NULL,
+  source TEXT,
+  title TEXT,
+  link TEXT,
+  summary TEXT,
+  meta_json TEXT
+);
+
+CREATE TABLE IF NOT EXISTS universe_events (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  ts TEXT NOT NULL,
+  actor TEXT NOT NULL,
+  action TEXT NOT NULL,
+  symbol TEXT,
+  meta_json TEXT
+);
 '''
 
 async def main():
