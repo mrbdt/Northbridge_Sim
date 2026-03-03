@@ -5,6 +5,10 @@ firm:
   initial_cash: 1000000
 
   ceo_report_update_minutes: 30  # CEO rolling report update frequency
+  target_cash_pct: 0.05          # CEO cash policy: keep <=5% NAV idle cash
+  cash_deploy_step_pct: 0.20     # Deploy 20% of excess cash each cycle
+  min_cash_deploy_ticket: 2500   # Skip tiny treasury orders
+  cash_deploy_cooldown_seconds: 120
 
 llm:
   ollama_base_url: "http://localhost:11434"
