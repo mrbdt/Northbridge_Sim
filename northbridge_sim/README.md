@@ -44,3 +44,19 @@ Or use Streamlit Admin buttons (writes to the YAML file via backend endpoints).
 
 ## Alpaca free tier rate limit (429) automatic fallback
 If `provider: alpaca_poll` is enabled and Alpaca returns **429 Too Many Requests**, the system automatically switches to **Yahoo polling** for the rest of the session and posts a message in the `ops` channel.
+
+***
+
+notes.
+
+#to kill the backend, do:
+
+ps aux | grep -E "uvicorn|backend\.main:app|backend\.main" | grep -v grep
+
+the you get:
+
+bdts             aaaaaaa   0.0  0.0 435291568  13808 s000  S+   11:14p.m.   0:14.01 /opt/homebrew/Cellar/python@3.12/3.12.12_2/Frameworks/Python.framework/Versions/3.12/Resources/Python.app/Contents/MacOS/Python /Users/bdts/Northbridge_Sim/northbridge_sim/.venv/bin/uvicorn backend.main:app --host 0.0.0.0 --port 8000 --reload
+
+upon which you do:
+
+kill -9 44434 } copying over aaaaaaaa from above.

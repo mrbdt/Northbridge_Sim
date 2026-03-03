@@ -400,7 +400,18 @@ def build_app() -> FastAPI:
         return {"ok": True, "firm": settings.firm.get("name"), "base_ccy": settings.firm.get("base_ccy")}
 
     @app.get("/api/portfolio")
-    async def get_portfolio():
+    async def get_portfolio(cached: bool = True):
+        if cached:
+            snap_key = app.state.settings.redis.get("channels", {}).get(
+                "portfolio_snapshot", "nb:portfolio:snapshot"
+            )
+            try:
+                raw = await app.state.redis.r.get(snap_key)
+                if raw:
+                    return json.loads(raw)
+            except Exception:
+                pass
+
         snap = await app.state.portfolio.snapshot()
         return json.loads(snap.model_dump_json())
 
