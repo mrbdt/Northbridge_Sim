@@ -50,6 +50,8 @@ class CEOAgent(BaseAgent):
         self._last_report_ts: Optional[dt.datetime] = None
         self._report_version: int = 0
         self._last_report_date: Optional[str] = None
+        self._last_hourly_key: Optional[str] = None
+        self._last_midnight_date: Optional[str] = None
         self._last_decision_analysis: str = ""
 
     async def step(self) -> None:
@@ -98,7 +100,7 @@ class CEOAgent(BaseAgent):
                     continue
                 await self.ctx.bus.publish("risk", self.agent_id, "NEW_INTENT", meta={"intent": intent.model_dump(), "ceo_analysis": analysis})
 
-        await self._maybe_update_rolling_report(snap)
+        await self._maybe_send_scheduled_reports(snap)
         await self.log_state({
             "state": "running",
             "pending_ideas": len(self._pending_intents),
@@ -147,35 +149,33 @@ class CEOAgent(BaseAgent):
         models = self.ctx.settings.llm.get("models", {})
         return models.get(key_or_name, key_or_name)
 
-    async def _maybe_update_rolling_report(self, snap) -> None:
-        # Update a rolling CEO report throughout the day (not just once).
+    async def _maybe_send_scheduled_reports(self, snap) -> None:
         tz = self.ctx.settings.firm.get("timezone", "Europe/London")
         now = dt.datetime.now(ZoneInfo(tz))
         today = now.date().isoformat()
 
-        update_minutes = int(self.ctx.settings.firm.get("ceo_report_update_minutes", 30))
-        if update_minutes <= 0:
+        run_hourly = now.minute == 0
+        hourly_key = now.strftime("%Y-%m-%d %H")
+
+        # Daily report at 00:00 London time (runs once per date).
+        run_midnight = now.hour == 0 and now.minute == 0 and self._last_midnight_date != today
+
+        if not run_hourly and not run_midnight:
             return
-
-        if self._last_report_date != today:
-            self._last_report_date = today
-            self._report_version = 0
-            self._last_report_ts = None
-
-        if self._last_report_ts is not None:
-            delta = now - self._last_report_ts
-            if delta.total_seconds() < update_minutes * 60:
-                return
+        if run_hourly and self._last_hourly_key == hourly_key and not run_midnight:
+            return
 
         self._report_version += 1
         self._last_report_ts = now
+        self._last_report_date = today
+        self._last_hourly_key = hourly_key
+        if run_midnight:
+            self._last_midnight_date = today
 
         model = self._resolve_model(self.cfg.model)
-        # Include recent executions (last ~20)
         rows = await self.ctx.db.fetchall(
             "SELECT ts, sender, message, meta_json FROM messages WHERE channel='execution' ORDER BY id DESC LIMIT 30"
         )
-        # keep it concise
         exec_lines: List[str] = []
         for r in reversed(rows):
             msg = str(r.get("message") or "")
@@ -190,15 +190,16 @@ class CEOAgent(BaseAgent):
                 exec_lines.append(f"- {sym} {side} {qty} @ {price} (fees {fees})")
         exec_block = "\n".join(exec_lines[-10:]) if exec_lines else "No fills yet."
 
+        cadence = "daily_midnight" if run_midnight else "hourly"
         prompt = (
-            "Write a rolling CEO report (<=300 words).\n"
+            "Write a CEO report for the founder in <=300 words.\n"
             "Be concrete and actionable.\n"
-            f"Date={today} Version={self._report_version}.\n"
+            f"Cadence={cadence}. Date={today}. Version={self._report_version}.\n"
             f"NAV={snap.nav:.2f}, gross={snap.gross_exposure:.2f}, net={snap.net_exposure:.2f}, lev={snap.leverage:.2f}, dd={snap.drawdown:.2%}.\n"
             f"Positions={json.dumps(snap.positions)}\n"
             f"Risk posture={json.dumps(self.risk_posture)}\n"
             f"Recent executions:\n{exec_block}\n"
-            "Include: key positions, notable changes since prior report, current risk posture, and next focus areas."
+            "Include: key positions, notable changes, current risks, and next focus areas."
         )
         resp = await self.ctx.llm.chat(
             model=model,
@@ -209,9 +210,11 @@ class CEOAgent(BaseAgent):
         )
         text = (resp.get("message", {}) or {}).get("content", "").strip()
         ts = utcnow_iso()
-        meta = {"date": today, "version": self._report_version}
+        meta = {"date": today, "version": self._report_version, "cadence": cadence, "timezone": tz}
         await self.ctx.db.execute(
             "INSERT INTO ceo_reports(ts, report_text, meta_json) VALUES(?,?,?)",
             (ts, text, json.dumps(meta)),
         )
-        await self.ctx.bus.publish("ceo", self.agent_id, f"DAILY_REPORT_UPDATE v{self._report_version}\n{text}", meta=meta)
+        await self.ctx.bus.publish("ceo", self.agent_id, f"CEO_REPORT[{cadence}] v{self._report_version}\n{text}", meta=meta)
+        await self.ctx.bus.publish("dm:ceo:user", "ceo", text, meta={**meta, "type": "scheduled_report"})
+
