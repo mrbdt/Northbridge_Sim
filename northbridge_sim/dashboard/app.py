@@ -115,7 +115,7 @@ if err or not health:
     st.stop()
 
 # Navigation (only renders ONE page worth of API calls per rerun)
-page = st.radio("", PAGES, horizontal=True, label_visibility="collapsed")
+page = st.radio("Navigation", PAGES, horizontal=True, label_visibility="collapsed")
 
 # ---------------- HOME ----------------
 if page == "Home":
