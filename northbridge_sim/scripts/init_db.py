@@ -4,143 +4,128 @@ from pathlib import Path
 
 import aiosqlite
 
-SCHEMA_SQL = '''
+DEFAULT_DB = os.environ.get("NB_SQLITE_PATH", "data/firm.db")
+
+SCHEMA_SQL = """
 PRAGMA journal_mode=WAL;
 PRAGMA synchronous=NORMAL;
+PRAGMA temp_store=MEMORY;
+PRAGMA busy_timeout=5000;
 
-CREATE TABLE IF NOT EXISTS instruments (
+CREATE TABLE IF NOT EXISTS instruments(
   symbol TEXT PRIMARY KEY,
-  asset_class TEXT NOT NULL,
-  ccy TEXT NOT NULL,
-  multiplier REAL NOT NULL DEFAULT 1.0,
+  asset_class TEXT,
+  ccy TEXT,
+  multiplier REAL,
   meta_json TEXT
 );
 
-CREATE TABLE IF NOT EXISTS orders (
-  order_id TEXT PRIMARY KEY,
-  ts TEXT NOT NULL,
-  agent_id TEXT NOT NULL,
-  symbol TEXT NOT NULL,
-  venue TEXT NOT NULL,
-  side TEXT NOT NULL,
-  qty REAL NOT NULL,
-  order_type TEXT NOT NULL,
-  limit_price REAL,
-  status TEXT NOT NULL,
+CREATE TABLE IF NOT EXISTS universe_events(
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  ts TEXT,
+  actor TEXT,
+  action TEXT,
+  symbol TEXT,
   meta_json TEXT
 );
 
-CREATE TABLE IF NOT EXISTS fills (
-  fill_id TEXT PRIMARY KEY,
-  ts TEXT NOT NULL,
-  order_id TEXT NOT NULL,
-  symbol TEXT NOT NULL,
-  venue TEXT NOT NULL,
-  side TEXT NOT NULL,
-  qty REAL NOT NULL,
-  price REAL NOT NULL,
-  fees REAL NOT NULL,
-  meta_json TEXT
-);
-
-CREATE TABLE IF NOT EXISTS positions (
+CREATE TABLE IF NOT EXISTS positions(
   symbol TEXT PRIMARY KEY,
-  qty REAL NOT NULL,
-  avg_price REAL NOT NULL,
-  realized_pnl REAL NOT NULL,
+  qty REAL,
+  avg_px REAL,
+  side TEXT,
   meta_json TEXT
 );
 
-CREATE TABLE IF NOT EXISTS cash (
+CREATE TABLE IF NOT EXISTS cash(
   ccy TEXT PRIMARY KEY,
-  balance REAL NOT NULL
+  balance REAL
 );
 
-CREATE TABLE IF NOT EXISTS nav (
-  ts TEXT PRIMARY KEY,
-  nav REAL NOT NULL,
-  gross_exposure REAL NOT NULL,
-  net_exposure REAL NOT NULL,
-  leverage REAL NOT NULL,
-  drawdown REAL NOT NULL,
-  meta_json TEXT
-);
-
-CREATE TABLE IF NOT EXISTS messages (
+CREATE TABLE IF NOT EXISTS messages(
   id INTEGER PRIMARY KEY AUTOINCREMENT,
-  ts TEXT NOT NULL,
-  channel TEXT NOT NULL,
-  sender TEXT NOT NULL,
-  message TEXT NOT NULL,
+  ts TEXT,
+  channel TEXT,
+  sender TEXT,
+  message TEXT,
   meta_json TEXT
 );
 
-CREATE TABLE IF NOT EXISTS agent_state (
+-- CRITICAL indexes for tails/filters as messages grow
+CREATE INDEX IF NOT EXISTS idx_messages_channel_id ON messages(channel, id);
+CREATE INDEX IF NOT EXISTS idx_messages_sender_id ON messages(sender, id);
+
+CREATE TABLE IF NOT EXISTS agent_state(
   agent_id TEXT PRIMARY KEY,
-  ts TEXT NOT NULL,
-  state_json TEXT NOT NULL
+  ts TEXT,
+  state_json TEXT
 );
 
-CREATE TABLE IF NOT EXISTS ceo_directives (
+CREATE TABLE IF NOT EXISTS portfolio_snapshots(
   id INTEGER PRIMARY KEY AUTOINCREMENT,
-  ts TEXT NOT NULL,
-  directive_text TEXT NOT NULL,
-  meta_json TEXT
+  ts TEXT,
+  nav REAL,
+  gross REAL,
+  net REAL,
+  leverage REAL,
+  drawdown REAL,
+  positions_json TEXT
 );
 
-CREATE TABLE IF NOT EXISTS ceo_reports (
+CREATE TABLE IF NOT EXISTS signals_items(
   id INTEGER PRIMARY KEY AUTOINCREMENT,
-  ts TEXT NOT NULL,
-  report_text TEXT NOT NULL,
-  meta_json TEXT
-);
-
-CREATE TABLE IF NOT EXISTS chat_rooms (
-  room_id TEXT PRIMARY KEY,
-  kind TEXT NOT NULL,
-  name TEXT NOT NULL,
-  created_by TEXT,
-  created_ts TEXT,
-  meta_json TEXT
-);
-
-CREATE TABLE IF NOT EXISTS chat_members (
-  room_id TEXT NOT NULL,
-  member_id TEXT NOT NULL,
-  added_by TEXT,
-  added_ts TEXT,
-  meta_json TEXT,
-  PRIMARY KEY(room_id, member_id)
-);
-
-CREATE TABLE IF NOT EXISTS signals_items (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  ts TEXT NOT NULL,
-  category TEXT NOT NULL,
-  source TEXT,
+  ts TEXT,
+  category TEXT,
   title TEXT,
   link TEXT,
   summary TEXT,
   meta_json TEXT
 );
 
-CREATE TABLE IF NOT EXISTS universe_events (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  ts TEXT NOT NULL,
-  actor TEXT NOT NULL,
-  action TEXT NOT NULL,
-  symbol TEXT,
+CREATE TABLE IF NOT EXISTS chat_rooms(
+  room_id TEXT PRIMARY KEY,
+  kind TEXT,
+  name TEXT,
+  created_by TEXT,
+  created_ts TEXT,
   meta_json TEXT
 );
-'''
 
-async def main():
-    db_path = os.environ.get("NB_SQLITE_PATH", "data/firm.db")
-    Path(db_path).parent.mkdir(parents=True, exist_ok=True)
-    async with aiosqlite.connect(db_path) as db:
+CREATE TABLE IF NOT EXISTS chat_members(
+  room_id TEXT,
+  member_id TEXT,
+  added_by TEXT,
+  added_ts TEXT,
+  meta_json TEXT,
+  PRIMARY KEY (room_id, member_id)
+);
+
+CREATE TABLE IF NOT EXISTS ceo_reports(
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  ts TEXT,
+  report_text TEXT,
+  meta_json TEXT
+);
+"""
+
+
+async def init_db(db_path: str = DEFAULT_DB) -> None:
+    p = Path(db_path)
+    p.parent.mkdir(parents=True, exist_ok=True)
+
+    async with aiosqlite.connect(str(p)) as db:
         await db.executescript(SCHEMA_SQL)
-        await db.commit()
-    print(f"Initialized SQLite schema at {db_path}")
+        # Seed USD cash if missing (aiosqlite compatibility: no execute_fetchone)
+        cur = await db.execute("SELECT balance FROM cash WHERE ccy='USD'")
+        row = await cur.fetchone()
+        await cur.close()
+
+        if row is None:
+            await db.execute("INSERT INTO cash(ccy, balance) VALUES('USD', 1000000.0)")
+            await db.commit()
+
+    print(f"Initialized DB at {p.resolve()}")
+
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    asyncio.run(init_db())

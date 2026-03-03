@@ -757,3 +757,22 @@ Traceback (most recent call last):
   File "/Users/bdts/Northbridge_Sim/northbridge_sim/.venv/lib/python3.12/site-packages/websockets/asyncio/connection.py", line 324, in recv
     raise self.protocol.close_exc from self.recv_exc
 websockets.exceptions.ConnectionClosedError: sent 1000 (OK); no close frame received
+2026-03-03 14:51:41,619 : WARNING : BINANCE.ws.1: received no messages within timeout, restarting connection
+2026-03-03 14:51:51,720 : WARNING : BINANCE.ws.1: encountered connection issue sent 1000 (OK); no close frame received - reconnecting in 1.0 seconds...
+TimeoutError: timed out while closing connection
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/Users/bdts/Northbridge_Sim/northbridge_sim/.venv/lib/python3.12/site-packages/cryptofeed/connection_handler.py", line 65, in _create_connection
+    await self._handler(connection, self.handler)
+  File "/Users/bdts/Northbridge_Sim/northbridge_sim/.venv/lib/python3.12/site-packages/cryptofeed/connection_handler.py", line 95, in _handler
+    async for message in connection.read():
+  File "/Users/bdts/Northbridge_Sim/northbridge_sim/.venv/lib/python3.12/site-packages/cryptofeed/connection.py", line 339, in read
+    async for data in self.conn:
+  File "/Users/bdts/Northbridge_Sim/northbridge_sim/.venv/lib/python3.12/site-packages/websockets/asyncio/connection.py", line 244, in __aiter__
+    yield await self.recv()
+          ^^^^^^^^^^^^^^^^^
+  File "/Users/bdts/Northbridge_Sim/northbridge_sim/.venv/lib/python3.12/site-packages/websockets/asyncio/connection.py", line 324, in recv
+    raise self.protocol.close_exc from self.recv_exc
+websockets.exceptions.ConnectionClosedError: sent 1000 (OK); no close frame received

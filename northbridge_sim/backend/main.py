@@ -101,6 +101,9 @@ CREATE TABLE IF NOT EXISTS messages (
   meta_json TEXT
 );
 
+CREATE INDEX IF NOT EXISTS idx_messages_channel_id ON messages(channel, id);
+CREATE INDEX IF NOT EXISTS idx_messages_sender_id ON messages(sender, id);
+
 CREATE TABLE IF NOT EXISTS agent_state (
   agent_id TEXT PRIMARY KEY,
   ts TEXT NOT NULL,
@@ -221,6 +224,7 @@ def build_app() -> FastAPI:
 
         bus_prefix = settings.redis.get("channels", {}).get("bus_prefix", "nb:chan:")
         bus = MessageBus(db=db, redis=rc, redis_prefix=bus_prefix)
+        await bus.start()
 
         # LLM client
         llm = OllamaLLM(
@@ -414,6 +418,13 @@ def build_app() -> FastAPI:
 
         snap = await app.state.portfolio.snapshot()
         return json.loads(snap.model_dump_json())
+    
+    @app.get("/api/dashboard/home")
+    async def dashboard_home():
+        port = await get_portfolio(cached=True)
+        uni = await app.state.universe.list()
+        last = app.state.price_store.snapshot()
+        return {"portfolio": port, "universe": uni, "last_prices": last}
 
     @app.get("/api/market/last")
     async def last_prices():
