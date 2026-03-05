@@ -26,6 +26,24 @@ class PortfolioService:
         if row and row["n"] == 0:
             await self.db.execute("INSERT INTO cash(ccy, balance) VALUES(?,?)", (self.base_ccy, self.initial_cash))
 
+
+
+    async def hydrate_risk_state(self) -> None:
+        """
+        Restore peak NAV across restarts so drawdown checks remain realistic.
+
+        Without this, restarting the backend resets peak_nav to initial_cash, which can
+        cause persistent false drawdown breaches (and CRO blocking all trades) when
+        running against an existing DB whose current NAV is below initial_cash.
+        """
+        row = await self.db.fetchone("SELECT MAX(nav) AS peak_nav FROM nav")
+        peak_from_nav = float(row["peak_nav"]) if row and row.get("peak_nav") is not None else 0.0
+
+        cash_row = await self.db.fetchone("SELECT balance FROM cash WHERE ccy=?", (self.base_ccy,))
+        cash_now = float(cash_row["balance"]) if cash_row else 0.0
+
+        self._risk_state.peak_nav = max(peak_from_nav, cash_now, 1.0)
+
     async def apply_fill(self, fill: Fill) -> None:
         side_mult = 1.0 if fill.side == "buy" else -1.0
         delta_qty = side_mult * fill.qty

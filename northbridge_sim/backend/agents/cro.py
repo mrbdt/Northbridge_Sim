@@ -28,7 +28,10 @@ class CROAgent(BaseAgent):
                 continue
             snap = await portfolio.snapshot()
             decision = risk.check_intent(snap, intent)
-            await self.ctx.bus.publish("risk", self.agent_id, f"RISK_{decision.status.upper()}", meta={"intent": intent.model_dump(), "decision": decision.model_dump()})
+            msg = f"RISK_{decision.status.upper()}"
+            if decision.reason:
+                msg = f"{msg}: {decision.reason}"
+            await self.ctx.bus.publish("risk", self.agent_id, msg, meta={"intent": intent.model_dump(), "decision": decision.model_dump()})
             if decision.status == "ok":
                 await self.ctx.bus.publish("execution", self.agent_id, "APPROVED_INTENT", meta={"intent": intent.model_dump()})
             elif decision.status == "resize" and decision.resized_qty is not None:

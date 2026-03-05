@@ -12,7 +12,7 @@ from .config import load_settings, load_yaml, load_agents
 from .db import Database
 from .redis_client import RedisClient
 from .bus import MessageBus
-from .llm import OllamaLLM
+from .llm import OllamaLLM, LLMTimeoutError, LLMServiceError
 from .services.price_store import PriceStore
 from .services.parquet_writer import ParquetTickWriter
 from .services.market_data_crypto import CryptoDataHub
@@ -289,6 +289,7 @@ def build_app() -> FastAPI:
             initial_cash=float(settings.firm.get("initial_cash", 1_000_000)),
         )
         await portfolio.init_if_empty()
+        await portfolio.hydrate_risk_state()
 
         risk = RiskService(RiskLimits(
             max_gross_leverage=float(settings.risk.get("max_gross_leverage", 3.0)),
@@ -557,13 +558,27 @@ def build_app() -> FastAPI:
         msgs.append({"role": "user", "content": f"(Context) Portfolio: NAV={snap.nav:.2f}, lev={snap.leverage:.2f}, dd={snap.drawdown:.2%}, positions={json.dumps(snap.positions)}"})
 
         model = settings.llm.get("models", {}).get("big", settings.llm.get("models", {}).get("worker", ""))
-        resp = await app.state.llm.chat(model=model or "worker", messages=msgs)
-        reply = (resp.get("message", {}) or {}).get("content", "").strip()
-
-        await app.state.bus.publish(room_id, "ceo", reply, meta={"type": "ceo_chat"})
-        # LLM trace
-        await app.state.bus.publish("llm_trace", "ceo", "CEO_CHAT", meta={"messages": msgs, "raw_output": reply})
-        return {"ok": True, "reply": reply}
+        try:
+            resp = await app.state.llm.chat(model=model or "worker", messages=msgs)
+            reply = (resp.get("message", {}) or {}).get("content", "").strip()
+            if not reply:
+                reply = "I couldn't produce a complete response just now. Please retry."
+            await app.state.bus.publish(room_id, "ceo", reply, meta={"type": "ceo_chat"})
+            # LLM trace
+            await app.state.bus.publish("llm_trace", "ceo", "CEO_CHAT", meta={"messages": msgs, "raw_output": reply})
+            return {"ok": True, "reply": reply}
+        except LLMTimeoutError as e:
+            fallback = "I’m still processing but the model timed out. Please retry in a few moments; I’ll keep this thread context."
+            await app.state.bus.publish(room_id, "ceo", fallback, meta={"type": "ceo_chat", "error": "timeout"})
+            await app.state.bus.publish("ops", "ceo", f"CEO chat timeout: {e}")
+            await app.state.bus.publish("llm_trace", "ceo", "CEO_CHAT_TIMEOUT", meta={"messages": msgs, "error": str(e)})
+            return {"ok": True, "reply": fallback, "warning": "llm_timeout"}
+        except LLMServiceError as e:
+            fallback = "I hit an upstream LLM service issue. Please retry shortly."
+            await app.state.bus.publish(room_id, "ceo", fallback, meta={"type": "ceo_chat", "error": "llm_service"})
+            await app.state.bus.publish("ops", "ceo", f"CEO chat llm service error: {e}")
+            await app.state.bus.publish("llm_trace", "ceo", "CEO_CHAT_ERROR", meta={"messages": msgs, "error": str(e)})
+            return {"ok": True, "reply": fallback, "warning": "llm_service"}
 
     @app.get("/api/ceo/reports")
     async def ceo_reports(date: Optional[str] = None, limit: int = 50):
