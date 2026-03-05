@@ -6,7 +6,7 @@ agents:
   status: active
   model: big
   schedule:
-    heartbeat_seconds: 60
+    heartbeat_seconds: 5
     daily_report_time: '17:05'
   permissions:
     can_trade: false
