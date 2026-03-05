@@ -5,6 +5,15 @@ from typing import Any, Dict, List, Optional, Union
 
 import httpx
 
+
+class LLMTimeoutError(Exception):
+    pass
+
+
+class LLMServiceError(Exception):
+    pass
+
+
 class OllamaLLM:
     """
     Thin async client for Ollama's /api/chat.
@@ -46,6 +55,11 @@ class OllamaLLM:
             payload["format"] = format
 
         async with self._sem:
-            r = await self._client.post(f"{self.base_url}/api/chat", json=payload)
-            r.raise_for_status()
-            return r.json()
+            try:
+                r = await self._client.post(f"{self.base_url}/api/chat", json=payload)
+                r.raise_for_status()
+                return r.json()
+            except httpx.TimeoutException as e:
+                raise LLMTimeoutError(f"LLM request timed out after configured timeout ({self._client.timeout}).") from e
+            except httpx.HTTPError as e:
+                raise LLMServiceError(f"LLM request failed: {e}") from e

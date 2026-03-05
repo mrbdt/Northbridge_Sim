@@ -12,7 +12,7 @@ from .config import load_settings, load_yaml, load_agents
 from .db import Database
 from .redis_client import RedisClient
 from .bus import MessageBus
-from .llm import OllamaLLM
+from .llm import OllamaLLM, LLMTimeoutError, LLMServiceError
 from .services.price_store import PriceStore
 from .services.parquet_writer import ParquetTickWriter
 from .services.market_data_crypto import CryptoDataHub
@@ -164,6 +164,45 @@ CREATE TABLE IF NOT EXISTS universe_events (
 """
 
 
+async def migrate_positions_schema(db: Database) -> None:
+    """Backfill legacy positions schema (avg_px/side) into avg_price/realized_pnl."""
+    cols = await db.fetchall("PRAGMA table_info(positions)")
+    if not cols:
+        return
+
+    names = {str(c.get("name") or "") for c in cols}
+    # Already on current schema.
+    if "avg_price" in names and "realized_pnl" in names:
+        return
+
+    # Legacy schema detected; rebuild table while preserving qty + average entry.
+    await db.executescript(
+        """
+        ALTER TABLE positions RENAME TO positions_legacy;
+
+        CREATE TABLE IF NOT EXISTS positions (
+          symbol TEXT PRIMARY KEY,
+          qty REAL NOT NULL,
+          avg_price REAL NOT NULL,
+          realized_pnl REAL NOT NULL,
+          meta_json TEXT
+        );
+
+        INSERT OR REPLACE INTO positions(symbol, qty, avg_price, realized_pnl, meta_json)
+        SELECT
+          symbol,
+          COALESCE(qty, 0.0),
+          COALESCE(avg_px, 0.0),
+          0.0,
+          COALESCE(meta_json, '{}')
+        FROM positions_legacy;
+
+        DROP TABLE positions_legacy;
+        """
+    )
+
+
+
 class DirectiveIn(BaseModel):
     text: str
 
@@ -217,6 +256,7 @@ def build_app() -> FastAPI:
         db = Database(settings.storage.get("sqlite_path", "data/firm.db"))
         await db.connect()
         await db.executescript(MIGRATION_SQL)
+        await migrate_positions_schema(db)
 
         # Redis + bus
         rc = RedisClient(settings.redis.get("url", "redis://localhost:6379/0"))
@@ -249,6 +289,7 @@ def build_app() -> FastAPI:
             initial_cash=float(settings.firm.get("initial_cash", 1_000_000)),
         )
         await portfolio.init_if_empty()
+        await portfolio.hydrate_risk_state()
 
         risk = RiskService(RiskLimits(
             max_gross_leverage=float(settings.risk.get("max_gross_leverage", 3.0)),
@@ -444,8 +485,27 @@ def build_app() -> FastAPI:
     async def get_agent_state(agent_id: str):
         row = await app.state.db.fetchone("SELECT agent_id, ts, state_json FROM agent_state WHERE agent_id=?", (agent_id,))
         if not row:
-            raise HTTPException(404, "No state for agent")
+            return {"agent_id": agent_id, "ts": None, "state": {"state": "starting"}}
         return {"agent_id": row["agent_id"], "ts": row["ts"], "state": json.loads(row["state_json"] or "{}")}
+
+    @app.get("/api/agent/{agent_id}/llm_trace")
+    async def get_agent_llm_trace(agent_id: str, limit: int = 80):
+        rows = await app.state.db.fetchall(
+            "SELECT id, ts, channel, sender, message, meta_json FROM messages "
+            "WHERE channel='llm_trace' AND sender=? ORDER BY id DESC LIMIT ?",
+            (agent_id, limit),
+        )
+        out = []
+        for r in reversed(rows):
+            out.append({
+                "id": r["id"],
+                "ts": r["ts"],
+                "channel": r["channel"],
+                "sender": r["sender"],
+                "message": r["message"],
+                "meta": json.loads(r.get("meta_json") or "{}"),
+            })
+        return out
 
     @app.get("/api/agent/{agent_id}/messages")
     async def get_agent_messages(agent_id: str, limit: int = 200):
@@ -498,13 +558,27 @@ def build_app() -> FastAPI:
         msgs.append({"role": "user", "content": f"(Context) Portfolio: NAV={snap.nav:.2f}, lev={snap.leverage:.2f}, dd={snap.drawdown:.2%}, positions={json.dumps(snap.positions)}"})
 
         model = settings.llm.get("models", {}).get("big", settings.llm.get("models", {}).get("worker", ""))
-        resp = await app.state.llm.chat(model=model or "worker", messages=msgs)
-        reply = (resp.get("message", {}) or {}).get("content", "").strip()
-
-        await app.state.bus.publish(room_id, "ceo", reply, meta={"type": "ceo_chat"})
-        # LLM trace
-        await app.state.bus.publish("llm_trace", "ceo", "CEO_CHAT", meta={"messages": msgs, "raw_output": reply})
-        return {"ok": True, "reply": reply}
+        try:
+            resp = await app.state.llm.chat(model=model or "worker", messages=msgs)
+            reply = (resp.get("message", {}) or {}).get("content", "").strip()
+            if not reply:
+                reply = "I couldn't produce a complete response just now. Please retry."
+            await app.state.bus.publish(room_id, "ceo", reply, meta={"type": "ceo_chat"})
+            # LLM trace
+            await app.state.bus.publish("llm_trace", "ceo", "CEO_CHAT", meta={"messages": msgs, "raw_output": reply})
+            return {"ok": True, "reply": reply}
+        except LLMTimeoutError as e:
+            fallback = "I’m still processing but the model timed out. Please retry in a few moments; I’ll keep this thread context."
+            await app.state.bus.publish(room_id, "ceo", fallback, meta={"type": "ceo_chat", "error": "timeout"})
+            await app.state.bus.publish("ops", "ceo", f"CEO chat timeout: {e}")
+            await app.state.bus.publish("llm_trace", "ceo", "CEO_CHAT_TIMEOUT", meta={"messages": msgs, "error": str(e)})
+            return {"ok": True, "reply": fallback, "warning": "llm_timeout"}
+        except LLMServiceError as e:
+            fallback = "I hit an upstream LLM service issue. Please retry shortly."
+            await app.state.bus.publish(room_id, "ceo", fallback, meta={"type": "ceo_chat", "error": "llm_service"})
+            await app.state.bus.publish("ops", "ceo", f"CEO chat llm service error: {e}")
+            await app.state.bus.publish("llm_trace", "ceo", "CEO_CHAT_ERROR", meta={"messages": msgs, "error": str(e)})
+            return {"ok": True, "reply": fallback, "warning": "llm_service"}
 
     @app.get("/api/ceo/reports")
     async def ceo_reports(date: Optional[str] = None, limit: int = 50):
