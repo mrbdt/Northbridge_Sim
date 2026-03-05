@@ -74,7 +74,6 @@ class MessageBus:
         try:
             await self._persist_task
         finally:
-            await bus.stop()
             self._persist_task = None
 
     def subscribe(self, channel: str) -> asyncio.Queue:
@@ -96,6 +95,16 @@ class MessageBus:
             "message": message,
             "meta": meta or {},
         }
+
+        await self._emit_payload(payload)
+
+        # Mirror internal bus traffic into chat so Internal Messaging becomes the
+        # primary lens for agent coordination.
+        for mirror in self._chat_mirrors(payload):
+            await self._emit_payload(mirror)
+
+    async def _emit_payload(self, payload: Dict[str, Any]) -> None:
+        channel = payload["channel"]
 
         # 1) In-memory tail buffer (instant)
         self._inmem[channel].append(payload)
@@ -131,6 +140,51 @@ class MessageBus:
             except Exception:
                 # If still failing, drop
                 pass
+
+    def _chat_mirrors(self, payload: Dict[str, Any]) -> List[Dict[str, Any]]:
+        channel = str(payload.get("channel") or "")
+        sender = str(payload.get("sender") or "")
+        if not sender:
+            return []
+
+        # Avoid loops for already-chat channels.
+        if channel.startswith("dm:") or channel.startswith("room:"):
+            return []
+
+        mirrored: List[Dict[str, Any]] = []
+        base_meta = dict(payload.get("meta") or {})
+        base_meta["_mirrored_from"] = channel
+
+        # firmwide room mirror for visibility
+        mirrored.append({
+            "id": None,
+            "ts": payload["ts"],
+            "channel": "room:all",
+            "sender": sender,
+            "message": payload.get("message") or "",
+            "meta": base_meta,
+        })
+
+        # direct channel mirrors for clearer handoffs
+        recipient_by_channel = {
+            "trade_ideas": "ceo",
+            "ceo_inbox": "ceo",
+            "risk": "cro",
+            "execution": "exec",
+        }
+        recipient = recipient_by_channel.get(channel)
+        if recipient and recipient != sender:
+            a, b = sorted([sender, recipient])
+            mirrored.append({
+                "id": None,
+                "ts": payload["ts"],
+                "channel": f"dm:{a}:{b}",
+                "sender": sender,
+                "message": payload.get("message") or "",
+                "meta": base_meta,
+            })
+
+        return mirrored
 
     async def tail(self, channel: str, limit: int = 200) -> List[Dict[str, Any]]:
         """

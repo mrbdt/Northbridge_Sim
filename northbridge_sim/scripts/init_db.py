@@ -31,9 +31,9 @@ CREATE TABLE IF NOT EXISTS universe_events(
 
 CREATE TABLE IF NOT EXISTS positions(
   symbol TEXT PRIMARY KEY,
-  qty REAL,
-  avg_px REAL,
-  side TEXT,
+  qty REAL NOT NULL,
+  avg_price REAL NOT NULL,
+  realized_pnl REAL NOT NULL,
   meta_json TEXT
 );
 

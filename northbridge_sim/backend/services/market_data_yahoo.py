@@ -4,6 +4,7 @@ import asyncio
 from typing import List, Optional
 
 import requests
+from requests import Session
 
 from .price_store import PriceStore
 from .parquet_writer import ParquetTickWriter, Tick
@@ -42,6 +43,8 @@ class YahooUniversePoller:
         self.max_symbols_per_request = max_symbols_per_request
         self._task: Optional[asyncio.Task] = None
         self._stop = asyncio.Event()
+        self._session: Session = requests.Session()
+        self._session.headers.update({"User-Agent": "northbridge-sim/1.0"})
 
     async def start(self) -> None:
         self._task = asyncio.create_task(self._run(), name="yahoo_universe_poller")
@@ -67,7 +70,8 @@ class YahooUniversePoller:
         for chunk in _chunk(symbols, self.max_symbols_per_request):
             symbols_str = ",".join(chunk)
             url = f"https://query1.finance.yahoo.com/v7/finance/quote?symbols={symbols_str}"
-            resp = await asyncio.to_thread(requests.get, url, timeout=10)
+            resp = await asyncio.to_thread(self._session.get, url, timeout=10)
+            resp.raise_for_status()
             data = resp.json()
             results = data.get("quoteResponse", {}).get("result", [])
             for r in results:
